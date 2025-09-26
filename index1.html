@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hoja de Viaje VDC 360°</title>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    const supabaseUrl = 'https://rcegikeiaxptolrduguc.supabase.co'
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjZWdpa2VpYXhwdG9scmR1Z3VjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2NTMyMDcsImV4cCI6MjA3MTIyOTIwN30.jbPM9F977zeITEmFA_xvVU6SCxlWWVCi3Dx7ZhFfTp8'
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    async function guardarViaje() {
+      const fecha = document.getElementById('fecha').value
+
+      const datos = {
+        "Teleco": [
+          { kg: 15.8, pzas: 14 },
+          { kg: 108.5, pzas: 100 }
+        ],
+        "Cuajo": [
+          { kg: 40.2, pzas: 40 }
+        ]
+      }
+
+      const { data, error } = await supabase
+        .from('hoja_viaje')
+        .insert([{ fecha: fecha, resultados: datos }])
+
+      if (error) {
+        alert("❌ Error al guardar viaje: " + error.message)
+      } else {
+        alert("✅ Viaje guardado correctamente.")
+      }
+    }
+
+    async function generarDocumento() {
+      const fecha = document.getElementById('fecha').value
+      const resultadoDiv = document.getElementById('resultado-totales')
+      resultadoDiv.innerHTML = "⏳ Cargando totales..."
+
+      if (!fecha) {
+        alert("Selecciona la fecha del viaje")
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('hoja_viaje')
+        .select('resultados')
+        .eq('fecha', fecha)
+
+      if (error || !data || data.length === 0) {
+        resultadoDiv.innerHTML = "❌ No se encontraron registros para esa fecha."
+        return
+      }
+
+      let totales = {}
+
+      data.forEach(entry => {
+        const res = entry.resultados
+        Object.keys(res).forEach(prod => {
+          res[prod].forEach(p => {
+            if (!totales[prod]) totales[prod] = { kg: 0, pzas: 0 }
+            totales[prod].kg += p.kg
+            totales[prod].pzas += p.pzas
+          })
+        })
+      })
+
+      let docText = `📄 TOTALES DEL DÍA ${fecha}\n\n`
+      Object.entries(totales).forEach(([prod, datos]) => {
+        docText += `🟢 ${prod} → ${datos.kg.toFixed(2)} kg | ${datos.pzas} piezas\n`
+      })
+
+      resultadoDiv.innerHTML = docText
+    }
+
+    window.guardarViaje = guardarViaje
+    window.generarDocumento = generarDocumento
+  </script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f2f2f2;
+      padding: 30px;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      max-width: 800px;
+      margin: auto;
+    }
+    h1 {
+      color: #000;
+      font-size: 28px;
+    }
+    label {
+      display: block;
+      margin-top: 20px;
+    }
+    input {
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 5px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 12px 18px;
+      background-color: #198754;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #146c43;
+    }
+    #resultado-totales {
+      margin-top: 40px;
+      white-space: pre-line;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Hoja de Viaje VDC 360°</h1>
+
+    <label for="fecha">Fecha del viaje:</label>
+    <input type="date" id="fecha" />
+
+    <div style="margin-top: 20px;">
+      <button onclick="guardarViaje()">Guardar Viaje</button>
+      <button onclick="generarDocumento()">Generar Documento de Totales</button>
+    </div>
+
+    <div id="resultado-totales"></div>
+  </div>
+</body>
+</html>
